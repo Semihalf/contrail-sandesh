@@ -22,6 +22,10 @@
 #include <config.h>
 #endif
 
+#if !defined(HAVE_SYS_STAT_H) && defined(__FreeBSD__)
+#define HAVE_SYS_STAT_H
+#endif
+
 #include <sys/types.h>
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>

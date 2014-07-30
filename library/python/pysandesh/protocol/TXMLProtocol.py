@@ -4,6 +4,7 @@
 
 import ctypes
 import re
+import uuid
 from TProtocol import *
 from  pysandesh.sandesh_logger import SandeshLogger
 
@@ -35,6 +36,7 @@ class TXMLProtocol(TProtocolBase):
   _XML_TYPENAME_U64 = 'u64'
   _XML_TYPENAME_IPV4 = 'ipv4'
   _XML_TYPENAME_DOUBLE = 'double'
+  _XML_TYPENAME_UUID = 'uuid_t'
   _XML_TYPENAME_STRING = 'string'
   _XML_TYPENAME_XML = 'xml'
   _XML_TYPENAME_STRUCT = 'struct'
@@ -66,6 +68,7 @@ class TXMLProtocol(TProtocolBase):
       TType.LIST : self._XML_TYPENAME_LIST,
       TType.SANDESH : self._XML_TYPENAME_SANDESH,
       TType.XML : self._XML_TYPENAME_XML,
+      TType.UUID : self._XML_TYPENAME_UUID,
     }
 
     self._field_type_dict = {}
@@ -206,7 +209,7 @@ class TXMLProtocol(TProtocolBase):
     try:
       self.writeBuffer(str(ctypes.c_byte(byte).value))
     except TypeError:
-      self._logger.error('TXML Protocol: Invalid byte value %s') % (byte)
+      self._logger.error('TXML Protocol: Invalid byte value %s' % str(byte))
       return -1
     return 0
 
@@ -214,7 +217,7 @@ class TXMLProtocol(TProtocolBase):
     try:
       self.writeBuffer(str(ctypes.c_short(i16).value))
     except TypeError:
-      self._logger.error('TXML Protocol: Invalid i16 value %s') % (i16)
+      self._logger.error('TXML Protocol: Invalid i16 value %s' % str(i16))
       return -1
     return 0
 
@@ -222,7 +225,7 @@ class TXMLProtocol(TProtocolBase):
     try:
       self.writeBuffer(str(ctypes.c_int(i32).value))
     except TypeError:
-      self._logger.error('TXML Protocol: Invalid i32 value %s') % (i32)
+      self._logger.error('TXML Protocol: Invalid i32 value %s' % str(i32))
       return -1
     return 0
 
@@ -230,7 +233,7 @@ class TXMLProtocol(TProtocolBase):
     try:
       self.writeBuffer(str(ctypes.c_long(i64).value))
     except TypeError:
-      self._logger.error('TXML Protocol: Invalid i64 value %s') % (i64)
+      self._logger.error('TXML Protocol: Invalid i64 value %s' % str(i64))
       return -1
     return 0
 
@@ -238,7 +241,7 @@ class TXMLProtocol(TProtocolBase):
     try:
       self.writeBuffer(str(ctypes.c_ushort(u16).value))
     except TypeError:
-      self._logger.error('TXML Protocol: Invalid u16 value %s') % (u16)
+      self._logger.error('TXML Protocol: Invalid u16 value %s' % str(u16))
       return -1
     return 0
 
@@ -246,7 +249,7 @@ class TXMLProtocol(TProtocolBase):
     try:
       self.writeBuffer(str(ctypes.c_uint(u32).value))
     except TypeError:
-      self._logger.error('TXML Protocol: Invalid u32 value %s') % (u32)
+      self._logger.error('TXML Protocol: Invalid u32 value %s' % str(u32))
       return -1
     return 0
 
@@ -254,7 +257,7 @@ class TXMLProtocol(TProtocolBase):
     try:
       self.writeBuffer(str(ctypes.c_ulonglong(u64).value))
     except TypeError:
-      self._logger.error('TXML Protocol: Invalid u64 value %s') %(u64)
+      self._logger.error('TXML Protocol: Invalid u64 value %s' % str(u64))
       return -1
     return 0
 
@@ -262,7 +265,7 @@ class TXMLProtocol(TProtocolBase):
     try:
       self.writeBuffer(str(ctypes.c_uint(ipv4).value))
     except TypeError:
-      self._logger.error('TXML Protocol: Invalid ipv4 value %s') %(ipv4)
+      self._logger.error('TXML Protocol: Invalid ipv4 value %s' % str(ipv4))
       return -1
     return 0
 
@@ -271,7 +274,11 @@ class TXMLProtocol(TProtocolBase):
     return 0
 
   def writeString(self, string):
-    match = re.search('<|>|&|\'|\"', string)
+    try:
+        match = re.search('<|>|&|\'|\"', string)
+    except TypeError:
+        self._logger.error('TXML Protocol: Invalid string value %s' % str(string))
+        return -1
     if match is not None:
       string = string.replace('&', '&amp;')
       string = string.replace("'", '&apos;')
@@ -288,6 +295,14 @@ class TXMLProtocol(TProtocolBase):
     self.writeBuffer(self._XML_CDATA_OPEN)
     self.writeBuffer(xml)
     self.writeBuffer(self._XML_CDATA_CLOSE)
+    return 0
+
+  def writeUUID(self, uuid):
+    try:
+      self.writeBuffer(str(uuid))
+    except TypeError:
+      self._logger.error('TXML Protocol: Invalid uuid_t value %s' % str(uuid))
+      return -1
     return 0
     
   class XMLReader:
@@ -799,6 +814,17 @@ class TXMLProtocol(TProtocolBase):
     if xml is None:
       return (-1, None)
     return (len(xml), xml)      
+
+  def readUUID(self):
+    (uuid_str, length) = self._xml_reader.readXMLValue()
+    if uuid_str is None:
+      return (-1, None)
+    try:
+      uuid_temp = uuid.UUID(uuid_str)
+    except ValueError:
+      self._logger.error('TXML Protocol: Invalid uuid_t value "%s".' %(uuid_str))
+      return (-1, None)
+    return (length, uuid_temp)
 
 class TXMLProtocolFactory:
   def __init__(self, strictRead=False, strictWrite=True):
